@@ -9,12 +9,14 @@
 
 int main()
 {
-	// Setting up the image
+	// Setting up a 2x1 image.
 	ppm::Image img("Image.ppm", NULL, 512, 256);
 	img.CompileImage();
-	// Drawing an empty rectangle
+	// Drawing an empty rectangle.
 	img.DrawEmptyRect(RED, 4);
+	// Adding a horizontal line to the center of the image.
 	img.DrawHLine(0, 128, 512, ORANGE);
+	// Adding a vertical line to the center of the image.
 	img.DrawVLine(256, 0, 256, ORANGE);
 	img.CompileImage();
 	// Drawing a filled rectangle.
