@@ -8,4 +8,4 @@ Add breakpoints after the `img.CompileImage()` line in the "test.cpp" to be able
 # Latest uses of functions
 ![Latest Image](./Outputs/Latest.png)
 
-Currently trying to implement Splines and Bezier Curves.
+Currently trying to fix Splines and Bezier Curves.

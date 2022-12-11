@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <array>
 
 namespace ppm
 {
@@ -26,11 +27,61 @@ union Color
 	{
 	}
 };
+Color operator/(const Color& c, uint8_t s)
+{
+	return Color(c.r / s, c.g / s, c.b / s, c.a / s);
+}
 // Stringifying the RGB values of Color c
 std::string StrColor(const Color& c)
 {
 	return std::to_string((int)c.r) + " " + std::to_string((int)c.g) + " " + std::to_string((int)c.b);
 }
+
+template<typename T>
+struct Vector2
+{
+	T x, y;
+	Vector2(T x = 0, T y = 0)
+		: x{ x }, y{ y }
+	{
+	}
+	template<typename Ty>
+	Vector2(const Vector2<Ty> v)
+		: x{ v.x }, y{ v.y }
+	{
+	}
+	template<typename Ty>
+	Vector2 operator+(const Vector2<Ty>& v)
+	{
+		return Vector2{ x + v.y, y + v.y };
+	}
+	Vector2 operator*(double s)
+	{
+		return Vector2{ T(x * s), T(y * s) };
+	}
+	template<typename Ty>
+	void operator+=(const Vector2<Ty>& v)
+	{
+		x += v.x;
+		y += v.y;
+	}
+};
+
+typedef Vector2<int>      Vector2i;
+typedef Vector2<uint32_t> Vector2u;
+typedef Vector2<float>    Vector2f;
+typedef Vector2<double>   Vector2d;
+
+uint32_t binomialCoefficent(uint32_t n, uint32_t k)
+{
+	if (k > n)
+		return 0;
+	if (k == 0 || n == k)
+		return 1;
+
+	return binomialCoefficent(n - 1, k - 1) + binomialCoefficent(n - 1, k);
+}
+
 // The Image class
 class Image
 {
@@ -41,12 +92,7 @@ private:
 	std::vector<Color> vBufferedImage;
 	std::string sHeader;
 private:
-	// For handling complex lerping
-	struct v2 { uint32_t x, y; };
-	v2 lerp(v2 p1, v2 p2, double t)
-	{
-		return v2{ uint32_t(p1.x + t * (p2.x - p1.x)), uint32_t(p1.y + t * (p2.y - p1.y)) };
-	}
+	
 
 public:
 	Image(const std::string& name, const Color& base, uint32_t width, uint32_t height, uint16_t colorDepth = 255u)
@@ -115,6 +161,10 @@ public:
 
 		vBufferedImage.at(x + y * nWidth) = c;
 	}
+	inline void SetPixel(Vector2u p, const Color& c)
+	{
+		SetPixel(p.x, p.y, c);
+	}
 	inline void DrawRect(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, const Color& c)
 	{
 		for (int y = y1; y < y2; y++)
@@ -124,6 +174,10 @@ public:
 				SetPixel(x, y, c);
 			}
 		}
+	}
+	inline void DrawRect(Vector2u p1, Vector2u p2, const Color& c)
+	{
+		DrawRect(p1.x, p1.y, p2.x, p2.y, c);
 	}
 	inline void DrawRect(const Color& c)
 	{
@@ -143,6 +197,10 @@ public:
 				DrawRect(x - xInc, y - yInc, x, y, (c ? c1 : c2));
 			}
 		}
+	}
+	inline void DrawCheckeredPattern(Vector2u p1, Vector2u p2, uint32_t xCount, uint32_t yCount, const Color& c1, const Color& c2)
+	{
+		DrawCheckeredPattern(p1.x, p1.y, p2.x, p2.y, xCount, yCount, c1, c2);
 	}
 	inline void DrawCheckeredPattern(uint32_t xCount, uint32_t yCount, const Color& c1, const Color& c2)
 	{
@@ -167,6 +225,10 @@ public:
 		DrawVLine(x1, y1, y2 - thickness, c, thickness);
 		DrawVLine(x2 - thickness, y1, y2, c, thickness);
 	}
+	inline void DrawEmptyRect(Vector2u p1, Vector2u p2, const Color& c, uint32_t thickness = 1)
+	{
+		DrawEmptyRect(p1.x, p1.y, p2.x, p2.y, c, thickness);
+	}
 	inline void DrawEmptyRect(const Color& c, uint32_t thickness = 1)
 	{
 		DrawEmptyRect(0, 0, nWidth, nHeight, c, thickness);
@@ -190,55 +252,23 @@ public:
 	{
 		DrawLine(0, 0, nWidth, nHeight, c, thickness);
 	}
-/*	
-	inline void DrawCubicBezier(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint32_t x3, uint32_t y3, uint32_t x4, uint32_t y4, const Color& c, uint32_t thickness = 1)
+	inline void DrawBezier(std::vector<Vector2u> controlPoints, const Color& c, uint32_t thickness = 1)
 	{
-		auto dista = std::sqrt(((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1)));
-		auto distb = std::sqrt(((x3 - x2) * (x3 - x2)) + ((y3 - y2) * (y3 - y2)));
-		auto distc = std::sqrt(((x4 - x3) * (x4 - x3)) + ((y4 - y3) * (y4 - y3)));
-		auto tdist = dista + distb + distc;
-		std::cout << "Dist A: " << dista << "\nDist B: " << distb << "\nDist C: " << distc << "\nDist Total: " << tdist << std::endl;
-		v2 p0{ x1, y1 };
-		v2 p1{ x2, y2 };
-		v2 p2{ x3, y3 };
-		v2 p3{ x3, y3 };
-		for (double t = 0; t <= dista; t++)
+		for (double t = 0; t <= 1.0; t += 0.00001)
 		{
-			std::cout << "Percentage : " << (t / dista) * 100 << std::endl;
-			v2 u = lerp(p0, p1, t / dista);
-			v2 v = lerp(p1, p2, t / dista);
-			v2 w = lerp(p2, p3, t / dista);
-			v2 x = lerp(u, v, t / dista);
-			v2 y = lerp(v, w, t / dista);
-			v2 z = lerp(x, y, t / dista);
-			SetPixel(z.x, z.y, c);
-		}
-		
-	}
-	inline void DrawCubicBezier(const Color& c, uint32_t thickness = 1)
-	{
-		DrawCubicBezier(0, nHeight, 0, 0, nWidth, 0, nWidth, nHeight, c, thickness);
-	}
-*/
-	inline void DrawQuadBezier(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint32_t x3, uint32_t y3, const Color& c, uint32_t thickness = 1)
-	{
-		auto dist1 = std::sqrt(((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1)));
-		auto dist2 = std::sqrt(((x3 - x2) * (x3 - x2)) + ((y3 - y2) * (y3 - y2)));
-		double tdist = std::sqrt(((x3 - x1) * (x3 - x1)) + ((y3 - y1) * (y3 - y1)));
-		for (double t = 0; t <= tdist; t++)
-		{
-			double percent = t / tdist;
-			v2 a = lerp({ x1, y1 }, { x2, y2 }, percent);
-			v2 b = lerp({ x2, y2 }, { x3, y3 }, percent);
-			double ndist = std::sqrt(((b.x - a.x) * (b.x - a.x)) + ((b.y - a.y) * (b.y - a.y)));
-			v2 p = lerp(a, b, percent);
-			std::cout << percent * ((dist1 + dist2) / ndist) << std::endl;
-			SetPixel(p.x, p.y, c);
+			Vector2u p;
+			int n = controlPoints.size() - 1;
+			for (int i = 0; i <= n; i++)
+			{
+				double bernsteinCoeff = binomialCoefficent(n, i) * std::pow(1 - t, n - 1) * std::pow(t, i);
+				p += controlPoints[i] * bernsteinCoeff;
+			}
+			SetPixel(p, c);
 		}
 	}
-	inline void DrawQuadBezier(const Color& c, uint32_t thickness = 1)
+	inline void DrawBezier(const Color& c, uint32_t thickness = 1)
 	{
-		DrawQuadBezier(0, nHeight, nWidth / 2, 0, nWidth, nHeight, c, thickness);
+		DrawBezier({ { 0, nHeight }, { 0, 0 }, { nWidth, 0 }, { nWidth, nHeight } }, c, thickness);
 	}
 };
 

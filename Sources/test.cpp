@@ -1,4 +1,4 @@
-#include <ppm.hpp>
+#include "ppm.hpp"
 
 #define WHITE  0xFFFFFF
 #define RED    0xFF0000
@@ -12,9 +12,6 @@
 int main()
 {
 	ppm::Image image("Image.ppm", BLACK, 400, 300);
-	image.DrawLine(WHITE, 3);
-	image.CompileImage();
-	image.DrawLine(image.GetWidth(), image.GetHeight() / 2, image.GetWidth() / 2, image.GetHeight(), WHITE, 3);
-	image.CompileImage();
+	image.DrawBezier({ {image.GetWidth(), 0}, {0, image.GetHeight()}, {0, 0},}, PURPLE);
 	return 0;
 }
